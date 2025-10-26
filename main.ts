@@ -21,7 +21,7 @@ interface VectorizeSettings {
 
 const DEFAULT_SETTINGS: VectorizeSettings = {
         ollamaModel: 'nomic-embed-text',
-        milvusAddress: 'http://localhost:19530',
+        milvusAddress: 'localhost:19530',
         collectionName: 'obsidian_notes'
 }
 
@@ -425,6 +425,7 @@ export default class VectorizePlugin extends Plugin {
 
         async saveSettings() {
                 await this.saveData(this.settings);
+                this.collectionInitialized = false;
                 this.initializeServices();
         }
 }
@@ -632,12 +633,12 @@ class VectorizeSettingTab extends PluginSettingTab {
 
                 new Setting(containerEl)
                         .setName('Milvus Address')
-                        .setDesc('The address of your Milvus server (default: http://localhost:19530)')
+                        .setDesc('The address of your Milvus server in host:port format (default: localhost:19530)')
                         .addText(text => text
-                                .setPlaceholder('http://localhost:19530')
+                                .setPlaceholder('localhost:19530')
                                 .setValue(this.plugin.settings.milvusAddress)
                                 .onChange(async (value) => {
-                                        this.plugin.settings.milvusAddress = value || 'http://localhost:19530';
+                                        this.plugin.settings.milvusAddress = value || 'localhost:19530';
                                         await this.plugin.saveSettings();
                                 }));
 
