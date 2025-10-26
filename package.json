@@ -8,13 +8,16 @@
                 "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
                 "version": "node version-bump.mjs && git add manifest.json versions.json"
         },
-        "keywords": ["obsidian", "vector", "embeddings", "ollama", "milvus", "similarity"],
+        "keywords": [
+                "obsidian",
+                "vector",
+                "embeddings",
+                "ollama",
+                "milvus",
+                "similarity"
+        ],
         "author": "",
         "license": "MIT",
-        "dependencies": {
-                "ollama": "^0.5.9",
-                "@zilliz/milvus2-sdk-node": "^2.4.9"
-        },
         "devDependencies": {
                 "@types/node": "^16.11.6",
                 "@typescript-eslint/eslint-plugin": "5.29.0",
