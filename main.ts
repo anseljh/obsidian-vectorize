@@ -719,6 +719,8 @@ class VectorizeSettingTab extends PluginSettingTab {
 
                 containerEl.createEl('h2', { text: 'Vectorize Settings' });
 
+                containerEl.createEl('h3', { text: 'Ollama Configuration' });
+
                 new Setting(containerEl)
                         .setName('Ollama URL')
                         .setDesc('The URL of your Ollama server (default: http://localhost:11434)')
@@ -741,6 +743,41 @@ class VectorizeSettingTab extends PluginSettingTab {
                                         await this.plugin.saveSettings();
                                 }));
 
+                const ollamaStatusSetting = new Setting(containerEl)
+                        .setName('Ollama Connection Status')
+                        .setDesc('Test the connection to your Ollama server');
+
+                const ollamaStatusEl = ollamaStatusSetting.descEl.createDiv({ cls: 'vectorize-status' });
+                ollamaStatusEl.style.marginTop = '10px';
+                ollamaStatusEl.style.padding = '8px';
+                ollamaStatusEl.style.borderRadius = '4px';
+                ollamaStatusEl.style.fontSize = '0.9em';
+                ollamaStatusEl.setText('Click "Test Connection" to check status');
+                ollamaStatusEl.style.backgroundColor = 'var(--background-secondary)';
+
+                ollamaStatusSetting.addButton(button => button
+                        .setButtonText('Test Connection')
+                        .onClick(async () => {
+                                button.setButtonText('Testing...');
+                                button.setDisabled(true);
+                                
+                                const result = await this.plugin.testOllamaConnection();
+                                
+                                ollamaStatusEl.setText(result.message);
+                                if (result.success) {
+                                        ollamaStatusEl.style.backgroundColor = 'var(--background-modifier-success)';
+                                        ollamaStatusEl.style.color = 'var(--text-on-accent)';
+                                } else {
+                                        ollamaStatusEl.style.backgroundColor = 'var(--background-modifier-error)';
+                                        ollamaStatusEl.style.color = 'var(--text-on-accent)';
+                                }
+                                
+                                button.setButtonText('Test Connection');
+                                button.setDisabled(false);
+                        }));
+
+                containerEl.createEl('h3', { text: 'Milvus Configuration' });
+
                 new Setting(containerEl)
                         .setName('Milvus URL')
                         .setDesc('The URL of your Milvus server (default: http://localhost:19530)')
@@ -762,6 +799,39 @@ class VectorizeSettingTab extends PluginSettingTab {
                                         this.plugin.settings.collectionName = value || 'obsidian_notes';
                                         await this.plugin.saveSettings();
                                 }));
+
+                const milvusStatusSetting = new Setting(containerEl)
+                        .setName('Milvus Connection Status')
+                        .setDesc('Test the connection to your Milvus server');
+
+                const milvusStatusEl = milvusStatusSetting.descEl.createDiv({ cls: 'vectorize-status' });
+                milvusStatusEl.style.marginTop = '10px';
+                milvusStatusEl.style.padding = '8px';
+                milvusStatusEl.style.borderRadius = '4px';
+                milvusStatusEl.style.fontSize = '0.9em';
+                milvusStatusEl.setText('Click "Test Connection" to check status');
+                milvusStatusEl.style.backgroundColor = 'var(--background-secondary)';
+
+                milvusStatusSetting.addButton(button => button
+                        .setButtonText('Test Connection')
+                        .onClick(async () => {
+                                button.setButtonText('Testing...');
+                                button.setDisabled(true);
+                                
+                                const result = await this.plugin.testMilvusConnection();
+                                
+                                milvusStatusEl.setText(result.message);
+                                if (result.success) {
+                                        milvusStatusEl.style.backgroundColor = 'var(--background-modifier-success)';
+                                        milvusStatusEl.style.color = 'var(--text-on-accent)';
+                                } else {
+                                        milvusStatusEl.style.backgroundColor = 'var(--background-modifier-error)';
+                                        milvusStatusEl.style.color = 'var(--text-on-accent)';
+                                }
+                                
+                                button.setButtonText('Test Connection');
+                                button.setDisabled(false);
+                        }));
 
                 containerEl.createEl('h3', { text: 'About' });
                 
