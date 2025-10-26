@@ -458,6 +458,75 @@ export default class VectorizePlugin extends Plugin {
                 await this.saveData(this.settings);
                 this.collectionInitialized = false;
         }
+
+        async testOllamaConnection(): Promise<{ success: boolean; message: string; model?: string }> {
+                try {
+                        const response = await requestUrl({
+                                url: `${this.settings.ollamaUrl}/api/tags`,
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        const models = response.json.models || [];
+                        const hasModel = models.some((m: any) => m.name === this.settings.ollamaModel);
+
+                        if (hasModel) {
+                                return { 
+                                        success: true, 
+                                        message: `Connected! Model "${this.settings.ollamaModel}" is available.`,
+                                        model: this.settings.ollamaModel
+                                };
+                        } else {
+                                return { 
+                                        success: false, 
+                                        message: `Connected, but model "${this.settings.ollamaModel}" not found. Available models: ${models.map((m: any) => m.name).join(', ')}`
+                                };
+                        }
+                } catch (error) {
+                        return { 
+                                success: false, 
+                                message: `Failed to connect to Ollama: ${error.message}`
+                        };
+                }
+        }
+
+        async testMilvusConnection(): Promise<{ success: boolean; message: string }> {
+                try {
+                        const response = await requestUrl({
+                                url: `${this.settings.milvusUrl}/v2/vectordb/collections/list`,
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({})
+                        });
+
+                        if (response.json.code === 0 || response.json.data) {
+                                const collections = response.json.data || [];
+                                const hasCollection = collections.includes(this.settings.collectionName);
+                                
+                                if (hasCollection) {
+                                        return { 
+                                                success: true, 
+                                                message: `Connected! Collection "${this.settings.collectionName}" exists.`
+                                        };
+                                } else {
+                                        return { 
+                                                success: true, 
+                                                message: `Connected! Collection "${this.settings.collectionName}" will be created on first use.`
+                                        };
+                                }
+                        } else {
+                                return { 
+                                        success: false, 
+                                        message: `Unexpected response from Milvus: ${response.json.message || 'Unknown error'}`
+                                };
+                        }
+                } catch (error) {
+                        return { 
+                                success: false, 
+                                message: `Failed to connect to Milvus: ${error.message}`
+                        };
+                }
+        }
 }
 
 class QueryModal extends Modal {
