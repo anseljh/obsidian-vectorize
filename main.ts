@@ -500,8 +500,11 @@ export default class VectorizePlugin extends Plugin {
                         });
 
                         if (response.json.code === 0 || response.json.data) {
-                                const collections = response.json.data || [];
-                                const hasCollection = collections.includes(this.settings.collectionName);
+                                const collectionsData = response.json.data || [];
+                                const collectionNames = collectionsData.map((item: any) => 
+                                        typeof item === 'string' ? item : item.collectionName
+                                );
+                                const hasCollection = collectionNames.includes(this.settings.collectionName);
                                 
                                 if (hasCollection) {
                                         return { 
