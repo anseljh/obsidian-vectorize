@@ -9,6 +9,11 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 **Current State:** Fully implemented and ready for use
 
 ## Recent Changes
+- **2025-10-26**: Added connection status indicators to settings
+  - Added "Test Connection" buttons for both Ollama and Milvus
+  - Real-time connection status with color-coded feedback
+  - Verifies Ollama model availability and lists alternatives if missing
+  - Reports Milvus collection existence status
 - **2025-10-26**: Refactored to use browser-compatible HTTP APIs
   - Removed Node.js SDK dependencies (ollama, @zilliz/milvus2-sdk-node)
   - Implemented direct HTTP calls to Ollama API (/api/embed)
@@ -34,8 +39,10 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 ### Settings
 - **Ollama URL**: URL of Ollama server (default: http://localhost:11434)
 - **Ollama Model**: Which model to use for embeddings (default: nomic-embed-text)
+- **Ollama Connection Status**: Test button to verify Ollama connectivity and model availability
 - **Milvus URL**: URL of Milvus server (default: http://localhost:19530)
 - **Collection Name**: Name of the Milvus collection (default: obsidian_notes)
+- **Milvus Connection Status**: Test button to verify Milvus connectivity and collection status
 
 ## Project Architecture
 
