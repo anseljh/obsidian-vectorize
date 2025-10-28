@@ -85,13 +85,23 @@ export default class VectorizePlugin extends Plugin {
                 }
 
                 try {
-                        const collections = await requestUrl({
+                        const response = await requestUrl({
                                 url: `${this.settings.chromaUrl}/api/v1/collections`,
                                 method: 'GET',
                                 headers: { 'Content-Type': 'application/json' }
                         });
 
-                        const collectionExists = collections.json.some((col: any) => col.name === this.settings.collectionName);
+                        if (response.status !== 200) {
+                                throw new Error(`Chroma server returned status ${response.status}`);
+                        }
+
+                        const collections = Array.isArray(response.json) ? response.json : response.json.collections;
+                        
+                        if (!Array.isArray(collections)) {
+                                throw new Error(`Unexpected response format from Chroma`);
+                        }
+
+                        const collectionExists = collections.some((col: any) => col.name === this.settings.collectionName);
 
                         if (!collectionExists) {
                                 new Notice('Creating Chroma collection...');
@@ -437,25 +447,33 @@ export default class VectorizePlugin extends Plugin {
                                 headers: { 'Content-Type': 'application/json' }
                         });
 
-                        const collections = response.json;
-                        if (Array.isArray(collections)) {
-                                const hasCollection = collections.some((col: any) => col.name === this.settings.collectionName);
-                                
-                                if (hasCollection) {
-                                        return { 
-                                                success: true, 
-                                                message: `Connected! Collection "${this.settings.collectionName}" exists.`
-                                        };
-                                } else {
-                                        return { 
-                                                success: true, 
-                                                message: `Connected! Collection "${this.settings.collectionName}" will be created on first use.`
-                                        };
-                                }
-                        } else {
+                        if (response.status !== 200) {
                                 return { 
                                         success: false, 
-                                        message: `Unexpected response from Chroma: ${JSON.stringify(response.json)}`
+                                        message: `Chroma server returned status ${response.status}`
+                                };
+                        }
+
+                        const collections = Array.isArray(response.json) ? response.json : response.json.collections;
+                        
+                        if (!Array.isArray(collections)) {
+                                return { 
+                                        success: false, 
+                                        message: `Unexpected response format from Chroma: ${JSON.stringify(response.json)}`
+                                };
+                        }
+
+                        const hasCollection = collections.some((col: any) => col.name === this.settings.collectionName);
+                        
+                        if (hasCollection) {
+                                return { 
+                                        success: true, 
+                                        message: `Connected! Collection "${this.settings.collectionName}" exists.`
+                                };
+                        } else {
+                                return { 
+                                        success: true, 
+                                        message: `Connected! Collection "${this.settings.collectionName}" will be created on first use.`
                                 };
                         }
                 } catch (error) {
