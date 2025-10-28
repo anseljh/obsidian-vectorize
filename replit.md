@@ -1,7 +1,7 @@
 # Obsidian Vectorize Plugin
 
 ## Overview
-Vectorize is an Obsidian plugin that enables semantic search across your notes using vector embeddings. It uses Ollama (running locally) to generate embeddings from note content and stores them in a Milvus vector database for fast similarity searches.
+Vectorize is an Obsidian plugin that enables semantic search across your notes using vector embeddings. It uses Ollama (running locally) to generate embeddings from note content and stores them in a Chroma vector database for fast similarity searches.
 
 **Project Type:** Obsidian Plugin Development (TypeScript)
 **Build System:** esbuild
@@ -9,15 +9,20 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 **Current State:** Fully implemented and ready for use
 
 ## Recent Changes
+- **2025-10-28**: Replaced Milvus with Chroma as the vector database
+  - Updated to use Chroma HTTP REST API (port 8000)
+  - Changed default collection name to "overseer_dev"
+  - Simplified vector storage with Chroma's upsert API
+  - Updated connection status tests for Chroma
 - **2025-10-26**: Added connection status indicators to settings
-  - Added "Test Connection" buttons for both Ollama and Milvus
+  - Added "Test Connection" buttons for both Ollama and Chroma
   - Real-time connection status with color-coded feedback
   - Verifies Ollama model availability and lists alternatives if missing
-  - Reports Milvus collection existence status
+  - Reports Chroma collection existence status
 - **2025-10-26**: Refactored to use browser-compatible HTTP APIs
   - Removed Node.js SDK dependencies (ollama, @zilliz/milvus2-sdk-node)
   - Implemented direct HTTP calls to Ollama API (/api/embed)
-  - Implemented direct HTTP calls to Milvus RESTful API (v2)
+  - Implemented direct HTTP calls to Chroma RESTful API (v1)
   - Fixed Obsidian compatibility - plugin now works in Electron renderer
   - Bundle size reduced from 883KB to 13KB
   - Updated settings to include full URLs for services
@@ -26,7 +31,7 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 
 ### Core Functionality
 1. **Embedding Generation**: Uses Ollama HTTP API to generate vector embeddings from note content
-2. **Vector Storage**: Stores embeddings in Milvus vector database via RESTful API
+2. **Vector Storage**: Stores embeddings in Chroma vector database via RESTful API
 3. **Similarity Search**: Find notes similar to the current note or custom queries
 4. **Vector Management**: Refresh modified notes or recompute all vectors
 
@@ -40,9 +45,9 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 - **Ollama URL**: URL of Ollama server (default: http://localhost:11434)
 - **Ollama Model**: Which model to use for embeddings (default: nomic-embed-text)
 - **Ollama Connection Status**: Test button to verify Ollama connectivity and model availability
-- **Milvus URL**: URL of Milvus server (default: http://localhost:19530)
-- **Collection Name**: Name of the Milvus collection (default: obsidian_notes)
-- **Milvus Connection Status**: Test button to verify Milvus connectivity and collection status
+- **Chroma URL**: URL of Chroma server (default: http://localhost:8000)
+- **Collection Name**: Name of the Chroma collection (default: overseer_dev)
+- **Chroma Connection Status**: Test button to verify Chroma connectivity and collection status
 
 ## Project Architecture
 
@@ -68,7 +73,7 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 ### Prerequisites
 Before using this plugin, you need:
 1. **Ollama** running locally on `http://localhost:11434`
-2. **Milvus** vector database running on `http://localhost:19530`
+2. **Chroma** vector database running on `http://localhost:8000`
 3. The **nomic-embed-text** model installed in Ollama (or configure a different model)
 
 ### Installation
@@ -82,16 +87,28 @@ Before using this plugin, you need:
 1. Open Settings → Vectorize
 2. Verify Ollama URL (default: http://localhost:11434)
 3. Verify Ollama model name (default: nomic-embed-text)
-4. Verify Milvus URL (default: http://localhost:19530)
-5. Run "Recompute vectors for all notes" to index your vault
-6. Use "Find similar notes" or "Query similar notes" commands
+4. Test Ollama connection
+5. Verify Chroma URL (default: http://localhost:8000)
+6. Test Chroma connection
+7. Run "Recompute vectors for all notes" to index your vault
+8. Use "Find similar notes" or "Query similar notes" commands
 
 ### How It Works
-1. **Collection Creation**: Plugin creates a Milvus collection on first use via RESTful API
+1. **Collection Creation**: Plugin creates a Chroma collection on first use via RESTful API
 2. **Embedding Generation**: Ollama generates 768-dimensional vectors from note text via HTTP
-3. **Vector Storage**: Each note's embedding is stored with its file path and metadata
+3. **Vector Storage**: Each note's embedding is stored with its file path and metadata using Chroma's upsert API
 4. **Similarity Search**: Uses cosine similarity to find related notes
 5. **Auto-Update**: Only reprocesses notes that have been modified
+
+### Starting Chroma Server
+```bash
+# Using Docker (recommended)
+docker run -p 8000:8000 chromadb/chroma
+
+# Or using Python
+pip install chromadb
+chroma run --host localhost --port 8000
+```
 
 ## Development Workflow
 
@@ -104,17 +121,17 @@ Before using this plugin, you need:
 ### Key Implementation Details
 - **Browser-Compatible**: Uses Obsidian's `requestUrl()` for all HTTP requests
 - **Ollama Integration**: Direct HTTP calls to `/api/embed` endpoint
-- **Milvus Integration**: Uses RESTful API v2 endpoints
+- **Chroma Integration**: Uses RESTful API v1 endpoints
 - **No Node.js Dependencies**: Works in Obsidian's Electron renderer environment
-- **Milvus Collection Schema**: 768-dim vectors with file path, content preview, modified time
-- **Search Algorithm**: COSINE metric for similarity
+- **Chroma Collection Schema**: Stores embeddings with metadata (file_path, content_preview, modified_time)
+- **Search Algorithm**: COSINE distance metric for similarity
 - **Error Handling**: Comprehensive try-catch with user-friendly notices
 - **Performance**: Batch processing with progress updates for large vaults
 
 ## Technical Notes
 - This is a **plugin development environment**, not a standalone application
 - The plugin must be loaded into Obsidian to function
-- Requires local Ollama and Milvus services
+- Requires local Ollama and Chroma services
 - Built files (`main.js`) are auto-generated and excluded from git
 - Uses browser-compatible APIs only (no Node.js modules)
 - Small bundle size (13KB) due to no external dependencies
@@ -122,4 +139,5 @@ Before using this plugin, you need:
 ## API References
 - Obsidian API: https://github.com/obsidianmd/obsidian-api
 - Ollama HTTP API: https://github.com/ollama/ollama/blob/main/docs/api.md
-- Milvus RESTful API: https://milvus.io/api-reference/restful/v2.6.x/About.md
+- Chroma API: https://docs.trychroma.com/reference
+- Chroma REST API Docs: http://localhost:8000/docs (when Chroma is running)
