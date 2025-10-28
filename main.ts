@@ -14,15 +14,15 @@ import {
 interface VectorizeSettings {
         ollamaModel: string;
         ollamaUrl: string;
-        milvusUrl: string;
+        chromaUrl: string;
         collectionName: string;
 }
 
 const DEFAULT_SETTINGS: VectorizeSettings = {
         ollamaModel: 'nomic-embed-text',
         ollamaUrl: 'http://localhost:11434',
-        milvusUrl: 'http://localhost:19530',
-        collectionName: 'obsidian_notes'
+        chromaUrl: 'http://localhost:8000',
+        collectionName: 'overseer_dev'
 }
 
 interface SimilarNote {
@@ -85,89 +85,37 @@ export default class VectorizePlugin extends Plugin {
                 }
 
                 try {
-                        const hasCollection = await this.milvusHasCollection();
+                        const collections = await requestUrl({
+                                url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' }
+                        });
 
-                        if (!hasCollection) {
-                                new Notice('Creating Milvus collection...');
-                                await this.milvusCreateCollection();
+                        const collectionExists = collections.json.some((col: any) => col.name === this.settings.collectionName);
+
+                        if (!collectionExists) {
+                                new Notice('Creating Chroma collection...');
+                                await requestUrl({
+                                        url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                                name: this.settings.collectionName,
+                                                metadata: {
+                                                        'hnsw:space': 'cosine'
+                                                }
+                                        })
+                                });
+                                new Notice('Chroma collection created successfully');
                         }
 
-                        await this.milvusLoadCollection();
                         this.collectionInitialized = true;
                         return true;
                 } catch (error) {
                         console.error('Error ensuring collection:', error);
-                        new Notice(`Error connecting to Milvus: ${error.message}`);
+                        new Notice(`Error connecting to Chroma: ${error.message}`);
                         return false;
                 }
-        }
-
-        async milvusHasCollection(): Promise<boolean> {
-                const response = await requestUrl({
-                        url: `${this.settings.milvusUrl}/v2/vectordb/collections/has`,
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                                collectionName: this.settings.collectionName
-                        })
-                });
-
-                return response.json.data?.has || false;
-        }
-
-        async milvusCreateCollection() {
-                await requestUrl({
-                        url: `${this.settings.milvusUrl}/v2/vectordb/collections/create`,
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                                collectionName: this.settings.collectionName,
-                                dimension: 768,
-                                metricType: 'COSINE',
-                                schema: {
-                                        fields: [
-                                                {
-                                                        fieldName: 'id',
-                                                        dataType: 'VarChar',
-                                                        isPrimary: true,
-                                                        elementTypeParams: { max_length: '512' }
-                                                },
-                                                {
-                                                        fieldName: 'file_path',
-                                                        dataType: 'VarChar',
-                                                        elementTypeParams: { max_length: '1024' }
-                                                },
-                                                {
-                                                        fieldName: 'content_preview',
-                                                        dataType: 'VarChar',
-                                                        elementTypeParams: { max_length: '2048' }
-                                                },
-                                                {
-                                                        fieldName: 'modified_time',
-                                                        dataType: 'Int64'
-                                                },
-                                                {
-                                                        fieldName: 'vector',
-                                                        dataType: 'FloatVector',
-                                                        elementTypeParams: { dim: '768' }
-                                                }
-                                        ]
-                                }
-                        })
-                });
-
-                new Notice('Milvus collection created successfully');
-        }
-
-        async milvusLoadCollection() {
-                await requestUrl({
-                        url: `${this.settings.milvusUrl}/v2/vectordb/collections/load`,
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                                collectionName: this.settings.collectionName
-                        })
-                });
         }
 
         async generateEmbedding(text: string): Promise<number[]> {
@@ -262,40 +210,43 @@ export default class VectorizePlugin extends Plugin {
 
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.milvusUrl}/v2/vectordb/entities/search`,
+                                url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/query`,
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                        collectionName: this.settings.collectionName,
-                                        data: [embedding],
-                                        annsField: 'vector',
-                                        limit: limit + (excludePath ? 1 : 0),
-                                        outputFields: ['file_path', 'content_preview']
+                                        query_embeddings: [embedding],
+                                        n_results: limit + (excludePath ? 1 : 0),
+                                        include: ['metadatas', 'documents', 'distances']
                                 })
                         });
 
                         const results: SimilarNote[] = [];
-                        const searchResults = response.json.data || [];
+                        const data = response.json;
                         
-                        for (const item of searchResults) {
-                                if (!item || item.length === 0) continue;
+                        if (!data.ids || !data.ids[0]) {
+                                return results;
+                        }
+
+                        const ids = data.ids[0];
+                        const metadatas = data.metadatas?.[0] || [];
+                        const documents = data.documents?.[0] || [];
+                        const distances = data.distances?.[0] || [];
+
+                        for (let i = 0; i < ids.length; i++) {
+                                const filePath = metadatas[i]?.file_path;
                                 
-                                for (const result of item) {
-                                        const filePath = result.file_path;
-                                        
-                                        if (excludePath && filePath === excludePath) {
-                                                continue;
-                                        }
+                                if (!filePath || (excludePath && filePath === excludePath)) {
+                                        continue;
+                                }
 
-                                        results.push({
-                                                filePath: filePath,
-                                                score: result.distance || 0,
-                                                content: result.content_preview || ''
-                                        });
+                                results.push({
+                                        filePath: filePath,
+                                        score: 1 - (distances[i] || 0),
+                                        content: metadatas[i]?.content_preview || ''
+                                });
 
-                                        if (results.length >= limit) {
-                                                break;
-                                        }
+                                if (results.length >= limit) {
+                                        break;
                                 }
                         }
 
@@ -341,23 +292,26 @@ export default class VectorizePlugin extends Plugin {
         async checkIfNeedsUpdate(file: TFile): Promise<boolean> {
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.milvusUrl}/v2/vectordb/entities/query`,
+                                url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/get`,
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                        collectionName: this.settings.collectionName,
-                                        filter: `file_path == "${file.path}"`,
-                                        outputFields: ['modified_time']
+                                        ids: [file.path],
+                                        include: ['metadatas']
                                 })
                         });
 
-                        const data = response.json.data;
-                        if (!data || data.length === 0) {
+                        const data = response.json;
+                        if (!data.ids || data.ids.length === 0) {
                                 return true;
                         }
 
-                        const storedTime = data[0].modified_time;
-                        return file.stat.mtime > storedTime;
+                        const metadata = data.metadatas?.[0];
+                        if (!metadata || !metadata.modified_time) {
+                                return true;
+                        }
+
+                        return file.stat.mtime > metadata.modified_time;
                 } catch (error) {
                         return true;
                 }
@@ -415,33 +369,18 @@ export default class VectorizePlugin extends Plugin {
                 const embedding = await this.generateEmbedding(content);
                 
                 const contentPreview = content.substring(0, 500).replace(/\n/g, ' ');
-                const noteId = file.path;
-
-                try {
-                        await requestUrl({
-                                url: `${this.settings.milvusUrl}/v2/vectordb/entities/delete`,
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                        collectionName: this.settings.collectionName,
-                                        filter: `file_path == "${file.path}"`
-                                })
-                        });
-                } catch (error) {
-                }
 
                 await requestUrl({
-                        url: `${this.settings.milvusUrl}/v2/vectordb/entities/insert`,
+                        url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/upsert`,
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                                collectionName: this.settings.collectionName,
-                                data: [{
-                                        id: noteId,
+                                ids: [file.path],
+                                embeddings: [embedding],
+                                metadatas: [{
                                         file_path: file.path,
                                         content_preview: contentPreview,
-                                        modified_time: file.stat.mtime,
-                                        vector: embedding
+                                        modified_time: file.stat.mtime
                                 }]
                         })
                 });
@@ -490,21 +429,17 @@ export default class VectorizePlugin extends Plugin {
                 }
         }
 
-        async testMilvusConnection(): Promise<{ success: boolean; message: string }> {
+        async testChromaConnection(): Promise<{ success: boolean; message: string }> {
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.milvusUrl}/v2/vectordb/collections/list`,
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({})
+                                url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' }
                         });
 
-                        if (response.json.code === 0 || response.json.data) {
-                                const collectionsData = response.json.data || [];
-                                const collectionNames = collectionsData.map((item: any) => 
-                                        typeof item === 'string' ? item : item.collectionName
-                                );
-                                const hasCollection = collectionNames.includes(this.settings.collectionName);
+                        const collections = response.json;
+                        if (Array.isArray(collections)) {
+                                const hasCollection = collections.some((col: any) => col.name === this.settings.collectionName);
                                 
                                 if (hasCollection) {
                                         return { 
@@ -520,13 +455,13 @@ export default class VectorizePlugin extends Plugin {
                         } else {
                                 return { 
                                         success: false, 
-                                        message: `Unexpected response from Milvus: ${response.json.message || 'Unknown error'}`
+                                        message: `Unexpected response from Chroma: ${JSON.stringify(response.json)}`
                                 };
                         }
                 } catch (error) {
                         return { 
                                 success: false, 
-                                message: `Failed to connect to Milvus: ${error.message}`
+                                message: `Failed to connect to Chroma: ${error.message}`
                         };
                 }
         }
@@ -779,57 +714,57 @@ class VectorizeSettingTab extends PluginSettingTab {
                                 button.setDisabled(false);
                         }));
 
-                containerEl.createEl('h3', { text: 'Milvus Configuration' });
+                containerEl.createEl('h3', { text: 'Chroma Configuration' });
 
                 new Setting(containerEl)
-                        .setName('Milvus URL')
-                        .setDesc('The URL of your Milvus server (default: http://localhost:19530)')
+                        .setName('Chroma URL')
+                        .setDesc('The URL of your Chroma server (default: http://localhost:8000)')
                         .addText(text => text
-                                .setPlaceholder('http://localhost:19530')
-                                .setValue(this.plugin.settings.milvusUrl)
+                                .setPlaceholder('http://localhost:8000')
+                                .setValue(this.plugin.settings.chromaUrl)
                                 .onChange(async (value) => {
-                                        this.plugin.settings.milvusUrl = value || 'http://localhost:19530';
+                                        this.plugin.settings.chromaUrl = value || 'http://localhost:8000';
                                         await this.plugin.saveSettings();
                                 }));
 
                 new Setting(containerEl)
                         .setName('Collection Name')
-                        .setDesc('The name of the Milvus collection to use (default: obsidian_notes)')
+                        .setDesc('The name of the Chroma collection to use (default: overseer_dev)')
                         .addText(text => text
-                                .setPlaceholder('obsidian_notes')
+                                .setPlaceholder('overseer_dev')
                                 .setValue(this.plugin.settings.collectionName)
                                 .onChange(async (value) => {
-                                        this.plugin.settings.collectionName = value || 'obsidian_notes';
+                                        this.plugin.settings.collectionName = value || 'overseer_dev';
                                         await this.plugin.saveSettings();
                                 }));
 
-                const milvusStatusSetting = new Setting(containerEl)
-                        .setName('Milvus Connection Status')
-                        .setDesc('Test the connection to your Milvus server');
+                const chromaStatusSetting = new Setting(containerEl)
+                        .setName('Chroma Connection Status')
+                        .setDesc('Test the connection to your Chroma server');
 
-                const milvusStatusEl = milvusStatusSetting.descEl.createDiv({ cls: 'vectorize-status' });
-                milvusStatusEl.style.marginTop = '10px';
-                milvusStatusEl.style.padding = '8px';
-                milvusStatusEl.style.borderRadius = '4px';
-                milvusStatusEl.style.fontSize = '0.9em';
-                milvusStatusEl.setText('Click "Test Connection" to check status');
-                milvusStatusEl.style.backgroundColor = 'var(--background-secondary)';
+                const chromaStatusEl = chromaStatusSetting.descEl.createDiv({ cls: 'vectorize-status' });
+                chromaStatusEl.style.marginTop = '10px';
+                chromaStatusEl.style.padding = '8px';
+                chromaStatusEl.style.borderRadius = '4px';
+                chromaStatusEl.style.fontSize = '0.9em';
+                chromaStatusEl.setText('Click "Test Connection" to check status');
+                chromaStatusEl.style.backgroundColor = 'var(--background-secondary)';
 
-                milvusStatusSetting.addButton(button => button
+                chromaStatusSetting.addButton(button => button
                         .setButtonText('Test Connection')
                         .onClick(async () => {
                                 button.setButtonText('Testing...');
                                 button.setDisabled(true);
                                 
-                                const result = await this.plugin.testMilvusConnection();
+                                const result = await this.plugin.testChromaConnection();
                                 
-                                milvusStatusEl.setText(result.message);
+                                chromaStatusEl.setText(result.message);
                                 if (result.success) {
-                                        milvusStatusEl.style.backgroundColor = 'var(--background-modifier-success)';
-                                        milvusStatusEl.style.color = 'var(--text-on-accent)';
+                                        chromaStatusEl.style.backgroundColor = 'var(--background-modifier-success)';
+                                        chromaStatusEl.style.color = 'var(--text-on-accent)';
                                 } else {
-                                        milvusStatusEl.style.backgroundColor = 'var(--background-modifier-error)';
-                                        milvusStatusEl.style.color = 'var(--text-on-accent)';
+                                        chromaStatusEl.style.backgroundColor = 'var(--background-modifier-error)';
+                                        chromaStatusEl.style.color = 'var(--text-on-accent)';
                                 }
                                 
                                 button.setButtonText('Test Connection');
@@ -840,11 +775,11 @@ class VectorizeSettingTab extends PluginSettingTab {
                 
                 const aboutDiv = containerEl.createDiv();
                 aboutDiv.createEl('p', { 
-                        text: 'Vectorize generates embeddings from your notes using Ollama and stores them in a Milvus vector database for similarity search.' 
+                        text: 'Vectorize generates embeddings from your notes using Ollama and stores them in a Chroma vector database for similarity search.' 
                 });
                 
                 aboutDiv.createEl('p', { 
-                        text: 'Make sure you have Ollama and Milvus running locally before using this plugin.' 
+                        text: 'Make sure you have Ollama and Chroma running locally before using this plugin.' 
                 });
 
                 const requirementsDiv = containerEl.createDiv();
@@ -853,7 +788,7 @@ class VectorizeSettingTab extends PluginSettingTab {
                 
                 const list = requirementsDiv.createEl('ul');
                 list.createEl('li', { text: `Ollama running on ${this.plugin.settings.ollamaUrl}` });
-                list.createEl('li', { text: `Milvus running on ${this.plugin.settings.milvusUrl}` });
+                list.createEl('li', { text: `Chroma running on ${this.plugin.settings.chromaUrl}` });
                 list.createEl('li', { text: `Ollama model "${this.plugin.settings.ollamaModel}" installed` });
         }
 }
