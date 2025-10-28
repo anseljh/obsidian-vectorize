@@ -105,7 +105,7 @@ export default class VectorizePlugin extends Plugin {
 
                         if (!collectionExists) {
                                 new Notice('Creating Chroma collection...');
-                                await requestUrl({
+                                const createResponse = await requestUrl({
                                         url: `${this.settings.chromaUrl}/api/v1/collections`,
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
@@ -116,6 +116,11 @@ export default class VectorizePlugin extends Plugin {
                                                 }
                                         })
                                 });
+                                
+                                if (createResponse.status !== 200 && createResponse.status !== 201) {
+                                        throw new Error(`Failed to create collection: status ${createResponse.status}`);
+                                }
+                                
                                 new Notice('Chroma collection created successfully');
                         }
 
