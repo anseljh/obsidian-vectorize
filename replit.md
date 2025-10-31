@@ -9,8 +9,11 @@ Vectorize is an Obsidian plugin that enables semantic search across your notes u
 **Current State:** Fully implemented and ready for use
 
 ## Recent Changes
+- **2025-10-31**: Updated to Chroma API v2
+  - All endpoints now use `/api/v2/` instead of deprecated `/api/v1/`
+  - Compatible with ChromaDB 1.0.0+
 - **2025-10-28**: Replaced Milvus with Chroma as the vector database
-  - Updated to use Chroma HTTP REST API (port 8000)
+  - Updated to use Chroma HTTP REST API v2 (port 8000)
   - Changed default collection name to "overseer_dev"
   - Simplified vector storage with Chroma's upsert API
   - Updated connection status tests for Chroma
@@ -121,7 +124,7 @@ chroma run --host localhost --port 8000
 ### Key Implementation Details
 - **Browser-Compatible**: Uses Obsidian's `requestUrl()` for all HTTP requests
 - **Ollama Integration**: Direct HTTP calls to `/api/embed` endpoint
-- **Chroma Integration**: Uses RESTful API v1 endpoints
+- **Chroma Integration**: Uses RESTful API v2 endpoints (`/api/v2/`)
 - **No Node.js Dependencies**: Works in Obsidian's Electron renderer environment
 - **Chroma Collection Schema**: Stores embeddings with metadata (file_path, content_preview, modified_time)
 - **Search Algorithm**: COSINE distance metric for similarity

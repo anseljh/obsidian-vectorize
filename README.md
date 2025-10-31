@@ -26,10 +26,11 @@ Before installing this plugin, you need to have running locally:
    - Should be running on `http://localhost:11434`
    - Install the embedding model: `ollama pull nomic-embed-text`
 
-2. **Chroma** - Vector database
+2. **Chroma** - Vector database (v1.0.0+)
    - Docker: `docker run -p 8000:8000 chromadb/chroma`
    - Or Python: `pip install chromadb && chroma run --host localhost --port 8000`
    - Should be running on `http://localhost:8000`
+   - Note: Plugin uses Chroma API v2
 
 ## Installation
 

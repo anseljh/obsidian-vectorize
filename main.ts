@@ -86,7 +86,7 @@ export default class VectorizePlugin extends Plugin {
 
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                url: `${this.settings.chromaUrl}/api/v2/collections`,
                                 method: 'GET',
                                 headers: { 'Content-Type': 'application/json' }
                         });
@@ -106,7 +106,7 @@ export default class VectorizePlugin extends Plugin {
                         if (!collectionExists) {
                                 new Notice('Creating Chroma collection...');
                                 const createResponse = await requestUrl({
-                                        url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                        url: `${this.settings.chromaUrl}/api/v2/collections`,
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
@@ -225,7 +225,7 @@ export default class VectorizePlugin extends Plugin {
 
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/query`,
+                                url: `${this.settings.chromaUrl}/api/v2/collections/${this.settings.collectionName}/query`,
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -307,7 +307,7 @@ export default class VectorizePlugin extends Plugin {
         async checkIfNeedsUpdate(file: TFile): Promise<boolean> {
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/get`,
+                                url: `${this.settings.chromaUrl}/api/v2/collections/${this.settings.collectionName}/get`,
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -386,7 +386,7 @@ export default class VectorizePlugin extends Plugin {
                 const contentPreview = content.substring(0, 500).replace(/\n/g, ' ');
 
                 await requestUrl({
-                        url: `${this.settings.chromaUrl}/api/v1/collections/${this.settings.collectionName}/upsert`,
+                        url: `${this.settings.chromaUrl}/api/v2/collections/${this.settings.collectionName}/upsert`,
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -447,7 +447,7 @@ export default class VectorizePlugin extends Plugin {
         async testChromaConnection(): Promise<{ success: boolean; message: string }> {
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.chromaUrl}/api/v2/heartbeat`,
+                                url: `${this.settings.chromaUrl}/api/v2/collections`,
                                 method: 'GET',
                                 headers: { 'Content-Type': 'application/json' }
                         });
