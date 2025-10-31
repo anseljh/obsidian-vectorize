@@ -6,7 +6,7 @@ An Obsidian plugin that enables semantic search across your notes using vector e
 
 - 🧠 **Semantic Search**: Find notes by meaning using AI-powered embeddings
 - 🔍 **Multiple Search Modes**: Search from current note or custom queries
-- 🚀 **Fast Vector Search**: Uses Milvus for efficient similarity matching
+- 🚀 **Fast Vector Search**: Uses Chroma for efficient similarity matching
 - 🔄 **Smart Updates**: Only reprocesses modified notes
 - ⚙️ **Configurable**: Choose your embedding model and database settings
 
@@ -26,9 +26,10 @@ Before installing this plugin, you need to have running locally:
    - Should be running on `http://localhost:11434`
    - Install the embedding model: `ollama pull nomic-embed-text`
 
-2. **Milvus** - Vector database
-   - Install from: https://milvus.io/docs/install_standalone-docker.md
-   - Should be running on `localhost:19530`
+2. **Chroma** - Vector database
+   - Docker: `docker run -p 8000:8000 chromadb/chroma`
+   - Or Python: `pip install chromadb && chroma run --host localhost --port 8000`
+   - Should be running on `http://localhost:8000`
 
 ## Installation
 
@@ -50,14 +51,15 @@ Before installing this plugin, you need to have running locally:
 
 Open Settings → Vectorize to configure:
 
+- **Ollama URL**: AI model server (default: `http://localhost:11434`)
 - **Ollama Model**: The embedding model to use (default: `nomic-embed-text`)
-- **Milvus Address**: Vector database connection (default: `localhost:19530`)
-- **Collection Name**: Database collection name (default: `obsidian_notes`)
+- **Chroma URL**: Vector database connection (default: `http://localhost:8000`)
+- **Collection Name**: Database collection name (default: `overseer_dev`)
 
 ## Usage
 
 ### First Time Setup
-1. Make sure Ollama and Milvus are running
+1. Make sure Ollama and Chroma are running
 2. Open the command palette (Ctrl/Cmd + P)
 3. Run: "Vectorize: Recompute vectors for all notes"
 4. Wait for processing to complete
@@ -79,8 +81,8 @@ Open Settings → Vectorize to configure:
 ## How It Works
 
 1. **Embedding Generation**: Your note content is sent to Ollama, which generates a 768-dimensional vector representing the semantic meaning
-2. **Vector Storage**: These embeddings are stored in Milvus along with note metadata
-3. **Similarity Search**: When searching, Milvus uses cosine similarity to find the most semantically similar notes
+2. **Vector Storage**: These embeddings are stored in Chroma along with note metadata
+3. **Similarity Search**: When searching, Chroma uses cosine similarity to find the most semantically similar notes
 4. **Smart Updates**: Only notes that have been modified are reprocessed
 
 ## Development
@@ -100,9 +102,10 @@ npm run build  # Production build
 
 ## Troubleshooting
 
-### "Error connecting to Milvus"
-- Check that Milvus is running: `docker ps` (if using Docker)
-- Verify the address in settings matches your Milvus instance
+### "Error connecting to Chroma"
+- Check that Chroma is running: `docker ps` (if using Docker)
+- Verify the URL in settings matches your Chroma instance (default: http://localhost:8000)
+- Test connection using the "Test Connection" button in settings
 
 ### "Failed to generate embedding"
 - Check that Ollama is running: `ollama list`
@@ -117,7 +120,7 @@ npm run build  # Production build
 
 - All processing happens locally on your machine
 - No data is sent to external servers
-- Embeddings are stored in your local Milvus instance
+- Embeddings are stored in your local Chroma instance
 - You have full control over your data
 
 ## License
@@ -128,4 +131,4 @@ MIT License - See LICENSE file for details
 
 - Built for [Obsidian](https://obsidian.md)
 - Uses [Ollama](https://ollama.ai) for embeddings
-- Uses [Milvus](https://milvus.io) for vector storage
+- Uses [Chroma](https://www.trychroma.com) for vector storage
