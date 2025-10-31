@@ -19,7 +19,7 @@ interface VectorizeSettings {
 }
 
 const DEFAULT_SETTINGS: VectorizeSettings = {
-        ollamaModel: 'nomic-embed-text',
+        ollamaModel: 'nomic-embed-text:latest',
         ollamaUrl: 'http://localhost:11434',
         chromaUrl: 'http://localhost:8000',
         collectionName: 'overseer_dev'
@@ -447,7 +447,7 @@ export default class VectorizePlugin extends Plugin {
         async testChromaConnection(): Promise<{ success: boolean; message: string }> {
                 try {
                         const response = await requestUrl({
-                                url: `${this.settings.chromaUrl}/api/v1/collections`,
+                                url: `${this.settings.chromaUrl}/api/v2/heartbeat`,
                                 method: 'GET',
                                 headers: { 'Content-Type': 'application/json' }
                         });
