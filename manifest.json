@@ -3,7 +3,7 @@
         "name": "Vectorize",
         "version": "1.0.0",
         "minAppVersion": "0.15.0",
-        "description": "Generate embeddings from notes using Ollama and search for similar notes using Milvus vector database.",
+        "description": "Generate embeddings from notes using Ollama and search for similar notes using Chroma vector database.",
         "author": "",
         "authorUrl": "",
         "isDesktopOnly": false
